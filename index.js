@@ -7,30 +7,31 @@ const fs = require('fs');
 const app = express();
 const port = 3000;
 
-app.use(express.json());
-
+app.use(express.text({ type: 'text/plain' }));
 // Serve static Swagger UI assets
 app.use('/api-docs/:spec', swaggerUi.serve);
+
+const apiMap = new Map();
+
 
 // Fallback route for serving Swagger API documentation based on the path parameter
 app.get('/api-docs/:spec', (req, res, next) => {
     const specName = req.params.spec;
 
-    const specPath = path.join(__dirname, 'api-specs', `${specName}`);
-
-    if (fs.existsSync(specPath)) {
-        try {
-
-            const swaggerDocument = YAML.load(specPath);
-            swaggerUi.setup(swaggerDocument)(req, res, next);
-
-        } catch (error) {
-
-            res.status(500).send('Error loading Swagger document');
-        }
+    if (apiMap.has(specName)) {
+        const swaggerDocument = YAML.parse(apiMap.get(specName));
+        swaggerUi.setup(swaggerDocument)(req, res, next);
     } else {
         res.status(404).send('API specification not found');
     }
+});
+
+app.post('/api-spec/:spec', (req, res, next) => {
+
+    const specName = req.params.spec;
+    apiMap.set(specName, req.body);
+    res.send(`API spec received for ${specName}`)
+    
 });
 
 // Start the server
